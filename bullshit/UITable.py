@@ -9,8 +9,8 @@ class UITable(QDialog):
         schema = cursor.schema
 
         table = QTableWidget()
-        table.setColumnCount(len(schema))
-        table.setHorizontalHeaderLabels(map(lambda x: x[0], schema))
+        table.setColumnCount(schema.properties_count)
+        table.setHorizontalHeaderLabels(map(lambda x: x.name, schema))
 
         for i, row in enumerate(cursor):
             for j, element in enumerate(row):

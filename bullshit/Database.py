@@ -49,6 +49,10 @@ class Schema:
         return super().__str__() + ' { ' + ', '.join([str(x) for x in self.properties]) + ' }'
 
     @property
+    def properties_count(self):
+        return len(self._properties)
+
+    @property
     def properties(self):
         return self._properties
 

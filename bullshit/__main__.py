@@ -87,7 +87,7 @@ def main(argv):
         def test(query: str, name: str):
             print("\n\n\n" + name)
             cursor = db.execute(query)
-            cls = model(name, cursor.schema)
+            cls = MetaModel.create(name, cursor.schema)
             models = [cls(*args) for args in cursor]
             for item in models:
                 print(item)

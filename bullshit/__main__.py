@@ -7,6 +7,7 @@ from Model import *
 from Database import *
 from UITable import UITable
 
+
 class LAB:
     def __init__(self, db: Database, window: QWidget):
         self.db = db
@@ -15,6 +16,7 @@ class LAB:
 
 class LAB0(LAB):
     """Утилиты"""
+
     def display_all_cars(self):
         self._do('''SELECT * FROM "DB_USER_1"."CARS"''', 'Cars')
 
@@ -44,8 +46,10 @@ class LAB0(LAB):
 
 class LAB1(LAB):
     """Выборка данных"""
+
     class A:
         """однотабличная выборка"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -66,6 +70,7 @@ class LAB1(LAB):
 
     class B:
         """соединение таблиц (join)"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -91,6 +96,7 @@ class LAB1(LAB):
 
     class C:
         """для реализации проекта"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -139,6 +145,7 @@ class LAB2(LAB):
 
     class A:
         """однотабличная вставка"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -152,6 +159,7 @@ class LAB2(LAB):
 
     class B:
         """многотабличная вставка в рамках транзакции"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -171,8 +179,10 @@ class LAB2(LAB):
 
 class LAB3(LAB):
     """Удаление данных"""
+
     class A:
         """удаление по фильтру и удаление из связанных таблиц"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -182,6 +192,7 @@ class LAB3(LAB):
 
     class B:
         """удаление в рамках транзакции"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -200,8 +211,10 @@ class LAB3(LAB):
 
 class LAB4(LAB):
     """Модификация данных"""
+
     class A:
         """модификация по фильтру"""
+
         def __init__(self, lab):
             self.lab = lab
 
@@ -211,6 +224,7 @@ class LAB4(LAB):
 
     class B:
         """модификация в рамках транзакции"""
+
         def __init__(self, lab):
             self.lab = lab
 

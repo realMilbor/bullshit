@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import *
 from Database import Schema
 
+
 class Model:
     pass
 

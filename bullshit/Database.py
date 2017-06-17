@@ -101,7 +101,7 @@ class Schema:
         return Schema([
             ('ID', cx_Oracle.NUMBER, 127, None, 0, -127, 0),
             ('DATE_WORK', cx_Oracle.DATETIME, 23, None, None, None, 0),
-            ('MASTER_ID',cx_Oracle.NUMBER, 127, None, 0, -127, 0),
+            ('MASTER_ID', cx_Oracle.NUMBER, 127, None, 0, -127, 0),
             ('CAR_ID', cx_Oracle.NUMBER, 127, None, 0, -127, 0),
             ('SERVICE_ID', cx_Oracle.NUMBER, 127, None, 0, -127, 0)
         ])

@@ -13,7 +13,7 @@ class UITable(QDialog):
         table.setHorizontalHeaderLabels(map(lambda x: x.name, schema))
 
         for i, row in enumerate(cursor):
-            for j, element in enumerate(row):
+            for j, element in enumerate(row.serialize().values()):
                 table.setRowCount(i + 1)
                 table.setItem(i, j, QTableWidgetItem(str(element)))
 

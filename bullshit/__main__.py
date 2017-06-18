@@ -3,6 +3,7 @@ import os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from Model import *
+import cx_Oracle
 
 from Database import *
 from UITable import UITable
@@ -56,7 +57,7 @@ class LAB1(LAB):
         def l1(self):
             """Вычислить общее услуг и общую сумму стоимости для отечественных и импортных автомобилей"""
             self.lab._do('''
-            SELECT COUNT(1), SUM(COST_OUR), SUM(COST_FOREIGN)
+            SELECT COUNT(1) as COUNT, SUM(COST_OUR) as TOTAL_OUR, SUM(COST_FOREIGN) as TOTAL_FOREIGN
             FROM "DB_USER_1"."SERVICES"
             ''', str(self.l1.__doc__))
 
@@ -149,13 +150,46 @@ class LAB2(LAB):
         def __init__(self, lab):
             self.lab = lab
 
-        def l1(self):
+        def l1(self, service: Service):
             """Добавить новую услугу"""
-            pass
+            assert isinstance(service, Service)
+            object: OrderedDict = service.serialize()
+            id_key = "ID"
+            del object[id_key]
+            keys = object.keys()
 
-        def l2(self):
+            variables = {
+                id_key: cx_Oracle.NUMBER
+            }
+
+            cursor: DatabaseCursor = self.lab._do('''
+            INSERT INTO "DB_USER_1"."SERVICES" ({keys})
+            VALUES ({values})
+            RETURNING "{ID}" INTO :{ID}
+            '''.format(keys=', '.join(keys), values=', '.join([':' + key for key in keys]), ID=id_key), vars=variables, **object)
+
+            return cursor.variables[id_key].getvalue()
+
+        def l2(self, work: Work):
             """Добавить работу по новой услуге из {lab_2_a_1}"""
-            pass
+            assert isinstance(work, Work)
+            object: OrderedDict = work.serialize()
+            id_key = "ID"
+            del object[id_key]
+            keys = object.keys()
+
+            variables = {
+                id_key: cx_Oracle.NUMBER
+            }
+
+            cursor: DatabaseCursor = self.lab._do('''
+            INSERT INTO "DB_USER_1"."WORKS" ({keys})
+            VALUES ({values})
+            RETURNING "{ID}" INTO :{ID}
+            '''.format(keys=', '.join(keys), values=', '.join([':' + key for key in keys]), ID=id_key), vars=variables, **object)
+
+            return cursor.variables[id_key].getvalue()
+
 
     class B:
         """многотабличная вставка в рамках транзакции"""
@@ -174,7 +208,18 @@ class LAB2(LAB):
             pass
 
     def run(self):
+        a = __class__.A(self)
+        service = Service(ID=0, NAME="INSERTING TEST", COST_OUR=11, COST_FOREIGN=22)
+        service_id = a.l1(service)
+        work = Work(ID=0, DATE_WORK=datetime.now(), MASTER_ID=1, CAR_ID=1, SERVICE_ID=service_id)
+        a.l2(work)
+
         pass
+
+    def _do(self, query: str, *args, **kwargs):
+        print(query)
+        return self.db.execute(query, *args, **kwargs)
+
 
 
 class LAB3(LAB):
@@ -249,7 +294,7 @@ def main(argv):
             sys.exit(1)
 
         window = QWidget()
-        window.resize(320, 240)
+        window.resize(640, 480)
         window.setWindowTitle('LAB1 v9')
         window.show()
 

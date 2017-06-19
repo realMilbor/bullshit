@@ -280,18 +280,47 @@ class LAB3(LAB):
         def __init__(self, lab):
             self.lab = lab
 
-        def l1(self):
+        def l1(self, master_id: Number):
             """Удалить в рамках транзакции услуги, которые оказывались только заданным мастером.
             Удалить работы по таким услугам этого мастера."""
-            pass
+            def chunk():
+                self.lab._do('''
+                DELETE FROM "DB_USER_1"."SERVICES" SVC
+                WHERE SVC.ID IN (
+                SELECT 1
+                FROM (SELECT WORK."SERVICE_ID" AS SVCID, SUM(1) AS COUNT
+                FROM "DB_USER_1"."WORKS" WORK
+                WHERE WORK.MASTER_ID = :master_id
+                GROUP BY  WORK."SERVICE_ID") SVC
+                WHERE SVC.COUNT = 1)
+                ''', master_id=master_id)
 
-        def l2(self):
+            self.lab.db.perform_in_transaction(chunk)
+
+        def l2(self, master_id: Number):
             """то же, что и п1, но еще удалить мастера и транзакцию откатить"""
-            pass
+            def chunk():
+                self.lab._do('''
+                DELETE FROM "DB_USER_1"."SERVICES" SVC
+                WHERE SVC.ID IN (
+                SELECT 1
+                FROM (SELECT WORK."SERVICE_ID" AS SVCID, SUM(1) AS COUNT
+                FROM "DB_USER_1"."WORKS" WORK
+                WHERE WORK.MASTER_ID = :master_id
+                GROUP BY  WORK."SERVICE_ID") SVC
+                WHERE SVC.COUNT = 1)
+                ''', master_id=master_id)
+                self.lab._do('''
+                DELETE FROM "DB_USER_1"."MASTERS" MASTER
+                WHERE MASTER.ID = :master_id
+                ''', master_id=master_id)
+                raise Exception()
+
+            self.lab.db.perform_in_transaction(chunk)
 
         def run(self):
-            pass
-
+            self.l1(1)
+            self.l2(2)
 
     def run(self):
         a = __class__.A(self)
@@ -353,12 +382,12 @@ def main(argv):
         #     lab = lab_class(db, window)
         #     lab.run()
 
-        l2 = LAB2(db, window)
-        a = LAB2.A(l2)
-        a.run()
+        # l2 = LAB2(db, window)
+        # a = LAB2.A(l2)
+        # a.run()
 
-        # lab = LAB3(db, window)
-        # lab.run()
+        lab = LAB3(db, window)
+        lab.run()
 
         return_code = app.exec()
 

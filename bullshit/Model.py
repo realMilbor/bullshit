@@ -26,7 +26,7 @@ class MetaModel(type):
 
             def generated_set(self, value: typeobj):
                 assert is_nullable if value is None else isinstance(value, typeobj)
-                setattr(self, ivar, typeobj)
+                setattr(self, ivar, value)
 
             def generated_del(self):
                 delattr(self, ivar)

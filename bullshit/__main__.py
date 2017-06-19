@@ -343,7 +343,14 @@ class LAB4(LAB):
 
         def l1(self):
             """Увеличить стоимость всех услуг на 15%"""
-            pass
+            self.lab._do('''
+            UPDATE "DB_USER_1"."SERVICES"
+            SET COST_OUR = COST_OUR * 1.15, COST_FOREIGN = COST_FOREIGN * 1.15
+            ''')
+            self.lab.db.commit_transaction()
+
+        def run(self):
+            self.l1()
 
     class B:
         """модификация в рамках транзакции"""
@@ -353,14 +360,51 @@ class LAB4(LAB):
 
         def l1(self):
             """В рамках транзакции в таблице услуг увеличить цену услуги, оказанной последней, на 10.00"""
-            pass
+            def chunk():
+                self.lab._do('''
+                UPDATE "DB_USER_1"."SERVICES" SERVICE
+                SET COST_OUR = COST_OUR + 10.00, COST_FOREIGN = COST_FOREIGN + 10.00
+                WHERE SERVICE.ID IN (
+                SELECT WORK."SERVICE_ID"
+                FROM "DB_USER_1"."WORKS" WORK
+                ORDER BY WORK."DATE_WORK" DESC
+                FETCH FIRST 1 ROW ONLY
+                )
+                ''')
+
+            self.lab.db.perform_in_transaction(chunk)
 
         def l2(self):
             """то же, что и п1, но транзакцию откатить"""
-            pass
+            def chunk():
+                self.lab._do('''
+                UPDATE "DB_USER_1"."SERVICES" SERVICE
+                SET COST_OUR = COST_OUR + 10.00, COST_FOREIGN = COST_FOREIGN + 10.00
+                WHERE SERVICE.ID IN (
+                SELECT WORK."SERVICE_ID"
+                FROM "DB_USER_1"."WORKS" WORK
+                ORDER BY WORK."DATE_WORK" DESC
+                FETCH FIRST 1 ROW ONLY
+                )
+                ''')
+                raise Exception()
+
+            self.lab.db.perform_in_transaction(chunk)
+
+        def run(self):
+            self.l1()
+            self.l2()
 
     def run(self):
+        a = __class__.A(self)
+        a.run()
+        b = __class__.B(self)
+        b.run()
         pass
+
+    def _do(self, query: str, *args, **kwargs):
+        result = self.db.execute(query, *args, **kwargs)
+        return result
 
 
 def main(argv):
@@ -386,8 +430,9 @@ def main(argv):
         # a = LAB2.A(l2)
         # a.run()
 
-        lab = LAB3(db, window)
-        lab.run()
+        lab = LAB4(db, window)
+        b = LAB4.B(lab)
+        b.run()
 
         return_code = app.exec()
 

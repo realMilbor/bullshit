@@ -30,6 +30,9 @@ class Database:
             def __len__(self):
                 return len(self._cursor)
 
+            def fetch_all(self):
+                return self._cursor.fetchall()
+
             def dismiss(self):
                 if self._cursor is not None:
                     try:
@@ -47,8 +50,9 @@ class Database:
             def variables(self):
                 return self._variables
 
-        def __init__(self, connection_string: str):
+        def __init__(self, connection_string: str, schema_name: str = None):
             self._connection_string = connection_string
+            self._schema_name = schema_name
             self._connection = None
 
         def __del__(self):
@@ -60,16 +64,13 @@ class Database:
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
-            # if exc_val is not None:
-            #     print("{}\n{}\n{}", exc_type, exc_val, exc_tb)
-            #
-            # return True
-
         def open(self):
             if self._connection is None:
                 try:
                     self._connection = cx_Oracle.connect(self._connection_string)
                     # self._connection.autocommit = True
+                    if self._schema_name is not None:
+                        self._connection.current_schema = self._schema_name
                     return True
                 except cx_Oracle.DatabaseError as err:
                     print(self._connection_string, ': ', err)
@@ -128,9 +129,10 @@ class Database:
 
     def __init__(self, **kwargs):
         self._connectionString = "{username}/{password}@{host}:{port}/{listener}".format(**kwargs)
+        self._schema_name = kwargs['schema']
 
     def __str__(self):
         return "ORACLE DATABASE " + self._connection.clientversion()
 
     def connect(self):
-        return __class__.Connection(self._connectionString)
+        return __class__.Connection(self._connectionString, self._schema_name)

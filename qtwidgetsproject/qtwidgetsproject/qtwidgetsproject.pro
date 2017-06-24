@@ -32,4 +32,5 @@ HEADERS += \
 
 FORMS += \
         mainwindow.ui \
-    uitable.ui
+    uitable.ui \
+    logindialog.ui

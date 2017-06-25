@@ -58,13 +58,9 @@ class Architect(QtCore.QObject):
             def _update(self, model: Model):
                 object: OrderedDict = model.serialize()
                 del object['ID']
-                # objectstring = ', '.join([str(key) + ' = "' + str(value) + '"' for key, value in object.items()])
-                key_name = lambda x: str(x) + '_key'
                 val_name = lambda x: str(x) + '_val'
                 object_string = ', '.join([str(key) + ' = ' + ':' + val_name(key) for key in object.keys()])
-                # object_keys = {key_name(key): str(key) for key in object.keys()}
                 object_vals = {val_name(key): val for key, val in object.items()}
-
                 cursor: Database.DatabaseCursor = connection.execute('''
                 UPDATE {table} TBL
                 SET {object}
@@ -89,7 +85,6 @@ class Architect(QtCore.QObject):
 
         dialog = EditDialog(CustomMediator(id), self.window)
         dialog.show()
-
 
     def _show_login_dialog(self):
         login_dialog = LoginDialog(self.window)
@@ -131,5 +126,3 @@ class Architect(QtCore.QObject):
             ''', vars=None, model=Master, login=login, password=password).fetch_all()
             master = masters[0] if masters else None
             return User(master.NAME, User.Role.MASTER) if master is not None else None
-
-

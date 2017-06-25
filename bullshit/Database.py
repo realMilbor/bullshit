@@ -33,6 +33,9 @@ class Database:
             def fetch_all(self):
                 return self._cursor.fetchall()
 
+            def fetch_one(self):
+                return self._cursor.fetchone()
+
             def dismiss(self):
                 if self._cursor is not None:
                     try:

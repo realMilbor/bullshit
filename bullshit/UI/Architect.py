@@ -1,4 +1,5 @@
 import sys
+import cx_Oracle
 from typing import Optional
 
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -8,6 +9,7 @@ from Model import *
 from .UI import *
 from .MainWindow import MainWindow
 from .LoginDialog import LoginDialog
+from .EditDialog import EditDialog
 
 
 class Architect(QtCore.QObject):
@@ -33,6 +35,61 @@ class Architect(QtCore.QObject):
     def _show_main_window(self, user: User):
         self.window.populate(user)
         self.window.show()
+        self._show_main_edit(self._connection, "CARS", None, Car)
+
+    def _show_main_edit(self, connection: Database.Connection, table_name: str, id, model_class: MetaModel):
+        class CustomMediator(EditDialog.Mediator):
+            def __init__(self, id):
+                self._id = id
+
+            def read(self) -> Model:
+                return self._selet() if self._id is not None else model_class()
+
+            def write(self, model: Model):
+                self._update(model) if self._id is not None else self._insert(model)
+
+            def _selet(self) -> Model:
+                return connection.execute('''
+                SELECT *
+                FROM {table} TBL
+                WHERE TBL.ID = :id
+                '''.format(table=table_name), id=self._id, model=model_class).fetch_one()
+
+            def _update(self, model: Model):
+                object: OrderedDict = model.serialize()
+                del object['ID']
+                # objectstring = ', '.join([str(key) + ' = "' + str(value) + '"' for key, value in object.items()])
+                key_name = lambda x: str(x) + '_key'
+                val_name = lambda x: str(x) + '_val'
+                object_string = ', '.join([str(key) + ' = ' + ':' + val_name(key) for key in object.keys()])
+                # object_keys = {key_name(key): str(key) for key in object.keys()}
+                object_vals = {val_name(key): val for key, val in object.items()}
+
+                cursor: Database.DatabaseCursor = connection.execute('''
+                UPDATE {table} TBL
+                SET {object}
+                WHERE TBL.ID = :id
+                '''.format(object=object_string, table=table_name), id=self._id, **object_vals)
+                connection.commit_transaction()
+
+            def _insert(self, model: Model):
+                object: OrderedDict = model.serialize()
+                del object['ID']
+                keys = object.keys()
+                variables = {'ID': cx_Oracle.NUMBER}
+                query = '''
+                INSERT INTO {table} ({keys})
+                VALUES ({values})
+                RETURNING "ID" INTO :ID
+                '''.format(table=table_name, keys=', '.join(keys), values=', '.join([':' + key for key in keys]))
+
+                cursor: Database.DatabaseCursor = connection.execute(query, vars=variables, **object)
+                connection.commit_transaction()
+                self._id = cursor.variables['ID'].getvalue()
+
+        dialog = EditDialog(CustomMediator(id), self.window)
+        dialog.show()
+
 
     def _show_login_dialog(self):
         login_dialog = LoginDialog(self.window)

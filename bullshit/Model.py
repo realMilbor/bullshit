@@ -43,7 +43,7 @@ class MetaModel(type):
                 else:
                     value = ordered_arguments.pop(0) if ordered_arguments else None
 
-                assert prop.is_nullable if value is None else isinstance(value, p.type), "Property is not nullable: " + prop.name
+                # assert prop.is_nullable if value is None else isinstance(value, p.type), "Property is not nullable: " + prop.name
                 setattr(self, ivar_name(p.name), value)
 
         def generated_serialize(self) -> Tuple:
@@ -63,7 +63,9 @@ class MetaModel(type):
         namespace['__init__'] = generated_init
         namespace['__str__'] = generated_str
         namespace['serialize'] = generated_serialize
+        namespace['static_schema'] = schema
         namespace['schema'] = property(lambda self: schema, lambda self, value: None, lambda self: None, '''schema''')
+        namespace['name'] = property(lambda self: name, lambda self, value: None, lambda self: None, '''name''')
         superclasses = (Model, *superclasses)
         return super(MetaModel, mcs).__new__(mcs, name, superclasses, namespace)
 

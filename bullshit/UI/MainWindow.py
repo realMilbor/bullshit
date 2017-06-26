@@ -1,6 +1,5 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
-from .LoginDialog import LoginDialog
-from .UI import *
+from typing import Optional
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -9,6 +8,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._user = None
         uic.loadUi('./UI/MainWindow.ui', self)
 
-    def populate(self, user: User):
-        self._user = user
-        self.setWindowTitle('Ultimate Automatization Technology: logged in as ' + self._user.name)
+    def populate(self, widget: Optional[QtWidgets.QWidget]):
+        if widget is not None:
+            self.centralWidget().layout().addWidget(widget)

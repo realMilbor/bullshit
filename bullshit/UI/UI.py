@@ -6,9 +6,10 @@ class User:
         SUPERVISOR = 1
         MASTER = 2
 
-    def __init__(self, name: str, role: Role):
+    def __init__(self, name: str, role: Role, id: int):
         self._name = name
         self._role = role
+        self._id = id
 
     @property
     def name(self):
@@ -17,3 +18,7 @@ class User:
     @property
     def role(self):
         return self._role
+
+    @property
+    def id(self):
+        return self._id

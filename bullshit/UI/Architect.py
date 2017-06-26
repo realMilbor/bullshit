@@ -1,6 +1,6 @@
 import sys
 import cx_Oracle
-from typing import Optional
+from typing import Optional, Any
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Database import Database
@@ -10,6 +10,8 @@ from .UI import *
 from .MainWindow import MainWindow
 from .LoginDialog import LoginDialog
 from .EditDialog import EditDialog
+from .ListWidget import ListWidget
+from .MasterRoleWidget import MasterRoleWidget
 
 
 class Architect(QtCore.QObject):
@@ -33,22 +35,43 @@ class Architect(QtCore.QObject):
         return self._app.exec()
 
     def _show_main_window(self, user: User):
-        self.window.populate(user)
-        self.window.show()
-        self._show_main_edit(self._connection, "CARS", None, Car)
+        widget = None
+        user_role = user.role
+        if user_role is User.Role.ADMIN:
+            pass
+        elif user_role is User.Role.SUPERVISOR:
+            pass
+        elif user_role is User.Role.MASTER:
+            widget = self._create_master_role_widget(user)
 
-    def _show_main_edit(self, connection: Database.Connection, table_name: str, id, model_class: MetaModel):
+        self.window.setWindowTitle('Ultimate Automatization Technology: logged in as ' + user.name + ' (' + str(user.role.name) + ') ')
+        self.window.populate(widget)
+        self.window.show()
+
+    def _create_master_role_widget(self, user):
+        show_abstract_edit = self._show_abstract_edit
+
+        class Mediator(MasterRoleWidget.Mediator):
+            def create_work(self):
+                show_abstract_edit(None, Work, "WORKS")
+
+        cars_widget = ListWidget(self.master_cars_list_mediator(), "Available cars")
+        services_widget = ListWidget(self.master_services_list_mediator(), "Available services")
+        works_widget = ListWidget(self.master_recent_works_mediator(user.id), "Your recent works")
+        return MasterRoleWidget(Mediator(), cars_widget, services_widget, works_widget)
+
+    def _edit_mediator(self, connection: Database.Connection, table_name: str, model_class: MetaModel):
         class CustomMediator(EditDialog.Mediator):
             def __init__(self, id):
                 self._id = id
 
             def read(self) -> Model:
-                return self._selet() if self._id is not None else model_class()
+                return self._select() if self._id is not None else model_class()
 
             def write(self, model: Model):
                 self._update(model) if self._id is not None else self._insert(model)
 
-            def _selet(self) -> Model:
+            def _select(self) -> Model:
                 return connection.execute('''
                 SELECT *
                 FROM {table} TBL
@@ -83,8 +106,99 @@ class Architect(QtCore.QObject):
                 connection.commit_transaction()
                 self._id = cursor.variables['ID'].getvalue()
 
-        dialog = EditDialog(CustomMediator(id), self.window)
+        return CustomMediator
+
+    def _show_abstract_edit(self, id: Any, model_class: MetaModel, table_name: str):
+        mediator_class = self._edit_mediator(connection=self._connection, table_name=table_name, model_class=model_class)
+        dialog = EditDialog(mediator_class(id), self.window)
         dialog.show()
+
+    def _list_mediator(self, connection: Database.Connection, table_name: str, model_class: MetaModel):
+        class Mediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return []
+
+            def edit(self, item: Model):
+                return
+
+            def delete(self, item: Model):
+                return
+
+    def master_cars_list_mediator(self):
+        connection = self._connection
+
+        class Mediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT CAR.*
+                FROM "DB_USER_1"."CARS" CAR
+                ORDER BY CAR.ID DESC
+                ''', model=Car).fetch_all()
+
+            def edit_available(self):
+                return False
+
+            def edit(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+            def delete_available(self):
+                return False
+
+            def delete(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+        return Mediator()
+
+    def master_services_list_mediator(self):
+        connection = self._connection
+
+        class Mediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT SVC.*
+                FROM "DB_USER_1"."SERVICES" SVC
+                ORDER BY SVC.ID DESC
+                ''', model=Service).fetch_all()
+
+            def edit_available(self):
+                return False
+
+            def edit(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+            def delete_available(self):
+                return False
+
+            def delete(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+        return Mediator()
+
+    def master_recent_works_mediator(self, master_id):
+        connection = self._connection
+        show_abstract_edit = self._show_abstract_edit
+
+        class Mediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT WORK.*
+                FROM WORKS WORK
+                WHERE WORK.MASTER_ID = :master_id AND WORK.DATE_WORK > ADD_MONTHS(CURRENT_DATE, -1)
+                ORDER BY WORK.DATE_WORK DESC
+                ''', model=Work, master_id=master_id).fetch_all()
+
+            def edit(self, item: Work):
+                assert isinstance(item, Work)
+                show_abstract_edit(item.ID, Work, "WORKS")
+
+            def delete(self, item: Work):
+                assert isinstance(item, Work)
+                connection.execute('''
+                DELETE FROM "WORKS"
+                WHERE ID = :work_id
+                ''', work_id=item.ID)
+
+        return Mediator()
 
     def _show_login_dialog(self):
         login_dialog = LoginDialog(self.window)
@@ -113,10 +227,10 @@ class Architect(QtCore.QObject):
             return None
 
         elif login == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-            return User(ADMIN_USERNAME, User.Role.ADMIN)
+            return User(ADMIN_USERNAME, User.Role.ADMIN, 0)
 
         elif login == SUPERVISOR_USERNAME and password == SUPERVISOR_PASSWORD:
-            return User(SUPERVISOR_USERNAME, User.Role.SUPERVISOR)
+            return User(SUPERVISOR_USERNAME, User.Role.SUPERVISOR, 0)
 
         else:
             masters: List[Master] = self._connection.execute('''
@@ -125,4 +239,4 @@ class Architect(QtCore.QObject):
             WHERE MASTER.NAME = :login AND MASTER.ID = :password
             ''', vars=None, model=Master, login=login, password=password).fetch_all()
             master = masters[0] if masters else None
-            return User(master.NAME, User.Role.MASTER) if master is not None else None
+            return User(master.NAME, User.Role.MASTER, master.ID) if master is not None else None

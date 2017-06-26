@@ -1,3 +1,4 @@
+import sys
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from Model import *
 from Schema import Schema
@@ -12,6 +13,65 @@ class EditDialog(QtWidgets.QDialog):
 
         def write(self, model: Model):
             pass
+
+    class AbstractField:
+        def __init__(self):
+            self._widget = None
+
+        def set(self, value):
+            pass
+
+        def get(self):
+            pass
+
+        def widget(self):
+            return self._widget
+
+    class DatePickerField(AbstractField):
+        def __init__(self):
+            super().__init__()
+            self._widget = QtWidgets.QDateTimeEdit()
+
+        def set(self, value):
+            self._widget.setDateTime(QtCore.QDateTime(value) if value else QtCore.QDateTime.currentDateTime())
+
+        def get(self):
+            return self._widget.dateTime().toPyDateTime()
+
+    class LineEditField(AbstractField):
+        def __init__(self):
+            super().__init__()
+            self._widget = QtWidgets.QLineEdit()
+
+        def set(self, value):
+            self._widget.setText(value or "")
+
+        def get(self):
+            return self._widget.text()
+
+    class SpinboxField(AbstractField):
+        def __init__(self):
+            super().__init__()
+            self._widget = QtWidgets.QSpinBox()
+            self._widget.setRange(-2147483647, 2147483647)
+
+        def set(self, value):
+            self._widget.setValue(int(value) if value else 0)
+
+        def get(self):
+            return self._widget.value()
+
+    class DoubleSpinboxField(AbstractField):
+        def __init__(self):
+            super().__init__()
+            self._widget = QtWidgets.QDoubleSpinBox()
+            self._widget.setRange(-2147483647, 2147483647)
+
+        def set(self, value):
+            self._widget.setValue(float(value) if value else 0.0)
+
+        def get(self):
+            return self._widget.value()
 
     def __init__(self, mediator: Mediator, parent: QtWidgets.QWidget = None):
         super().__init__(parent)
@@ -35,11 +95,8 @@ class EditDialog(QtWidgets.QDialog):
         params = {}
         for property in schema:
             key = property.name
-            value = self._input_fields[key].text() or None
-            if property.type is Number:
-                params[key] = float(value) if value is not None else 0
-            else:
-                params[key] = property.type(value) if value is not None else property.type()
+            value = self._input_fields[key].get()
+            params[key] = value
 
         self._mediator.write(model_class(**params))
 
@@ -49,7 +106,7 @@ class EditDialog(QtWidgets.QDialog):
         self._current_model_class = type(model)
         self._create_form(model.schema)
         for key, value in model.serialize().items():
-            self._input_fields[key].setText(str(value) if value is not None else str())
+            self._input_fields[key].set(value)
 
     def _slot_clicked(self, button):
         standard_button = self.sender().standardButton(button)
@@ -60,24 +117,26 @@ class EditDialog(QtWidgets.QDialog):
             self.load()
 
     def _create_form(self, schema: Schema):
-        def validator_for_type(type: type) -> QtGui.QValidator:
-            return {
-                Number: QtGui.QDoubleValidator(),
-                int: QtGui.QIntValidator(),
-                float: QtGui.QDoubleValidator(),
-            }.get(type, None)
+        def field_class_for_type(self, type: type) -> type:
+            if type in (int, Number):
+                return self.__class__.SpinboxField
+            elif type == float:
+                return self.__class__.DoubleSpinboxField
+            elif type == str:
+                return self.__class__.LineEditField
+            elif type == datetime:
+                return self.__class__.DatePickerField
+            else:
+                assert False
 
         input_fields = {}
         layout: QtWidgets.QFormLayout = self.groupBox.layout()
         for property in schema.properties:
-            line_edit = QtWidgets.QLineEdit()
-            line_edit.setEnabled(property.name != 'ID')
+            field = field_class_for_type(self, property.type)()
+            field.widget().setEnabled(property.name != 'ID')
 
-            validator = validator_for_type(property.type)
-            line_edit.setValidator(validator) if validator is not None else None
-
-            input_fields[property.name] = line_edit
-            layout.addRow(property.name, line_edit)
+            input_fields[property.name] = field
+            layout.addRow(property.name, field.widget())
 
         self._input_fields = input_fields
 

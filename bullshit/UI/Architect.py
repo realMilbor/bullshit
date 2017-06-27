@@ -12,6 +12,7 @@ from .LoginDialog import LoginDialog
 from .EditDialog import EditDialog
 from .ListWidget import ListWidget
 from .MasterRoleWidget import MasterRoleWidget
+from .SupervisorRoleWidget import SupervisorRoleWidget
 
 
 class Architect(QtCore.QObject):
@@ -38,27 +39,15 @@ class Architect(QtCore.QObject):
         widget = None
         user_role = user.role
         if user_role is User.Role.ADMIN:
-            pass
+            assert False
         elif user_role is User.Role.SUPERVISOR:
-            pass
+            widget = self._create_supervisor_role_widget()
         elif user_role is User.Role.MASTER:
             widget = self._create_master_role_widget(user)
 
         self.window.setWindowTitle('Ultimate Automatization Technology: logged in as ' + user.name + ' (' + str(user.role.name) + ') ')
         self.window.populate(widget)
         self.window.show()
-
-    def _create_master_role_widget(self, user):
-        show_abstract_edit = self._show_abstract_edit
-
-        class Mediator(MasterRoleWidget.Mediator):
-            def create_work(self):
-                show_abstract_edit(None, Work, "WORKS")
-
-        cars_widget = ListWidget(self.master_cars_list_mediator(), "Available cars")
-        services_widget = ListWidget(self.master_services_list_mediator(), "Available services")
-        works_widget = ListWidget(self.master_recent_works_mediator(user.id), "Your recent works")
-        return MasterRoleWidget(Mediator(), cars_widget, services_widget, works_widget)
 
     def _edit_mediator(self, connection: Database.Connection, table_name: str, model_class: MetaModel):
         class CustomMediator(EditDialog.Mediator):
@@ -113,93 +102,6 @@ class Architect(QtCore.QObject):
         dialog = EditDialog(mediator_class(id), self.window)
         dialog.show()
 
-    def _list_mediator(self, connection: Database.Connection, table_name: str, model_class: MetaModel):
-        class Mediator(ListWidget.Mediator):
-            def load(self) -> List[Model]:
-                return []
-
-            def edit(self, item: Model):
-                return
-
-            def delete(self, item: Model):
-                return
-
-    def master_cars_list_mediator(self):
-        connection = self._connection
-
-        class Mediator(ListWidget.Mediator):
-            def load(self) -> List[Model]:
-                return connection.execute('''
-                SELECT CAR.*
-                FROM "DB_USER_1"."CARS" CAR
-                ORDER BY CAR.ID DESC
-                ''', model=Car).fetch_all()
-
-            def edit_available(self):
-                return False
-
-            def edit(self, item: Model):
-                assert False, "You're not supposed to be able to do this"
-
-            def delete_available(self):
-                return False
-
-            def delete(self, item: Model):
-                assert False, "You're not supposed to be able to do this"
-
-        return Mediator()
-
-    def master_services_list_mediator(self):
-        connection = self._connection
-
-        class Mediator(ListWidget.Mediator):
-            def load(self) -> List[Model]:
-                return connection.execute('''
-                SELECT SVC.*
-                FROM "DB_USER_1"."SERVICES" SVC
-                ORDER BY SVC.ID DESC
-                ''', model=Service).fetch_all()
-
-            def edit_available(self):
-                return False
-
-            def edit(self, item: Model):
-                assert False, "You're not supposed to be able to do this"
-
-            def delete_available(self):
-                return False
-
-            def delete(self, item: Model):
-                assert False, "You're not supposed to be able to do this"
-
-        return Mediator()
-
-    def master_recent_works_mediator(self, master_id):
-        connection = self._connection
-        show_abstract_edit = self._show_abstract_edit
-
-        class Mediator(ListWidget.Mediator):
-            def load(self) -> List[Model]:
-                return connection.execute('''
-                SELECT WORK.*
-                FROM WORKS WORK
-                WHERE WORK.MASTER_ID = :master_id AND WORK.DATE_WORK > ADD_MONTHS(CURRENT_DATE, -1)
-                ORDER BY WORK.DATE_WORK DESC
-                ''', model=Work, master_id=master_id).fetch_all()
-
-            def edit(self, item: Work):
-                assert isinstance(item, Work)
-                show_abstract_edit(item.ID, Work, "WORKS")
-
-            def delete(self, item: Work):
-                assert isinstance(item, Work)
-                connection.execute('''
-                DELETE FROM "WORKS"
-                WHERE ID = :work_id
-                ''', work_id=item.ID)
-
-        return Mediator()
-
     def _show_login_dialog(self):
         login_dialog = LoginDialog(self.window)
         login_dialog.modal = True
@@ -236,7 +138,213 @@ class Architect(QtCore.QObject):
             masters: List[Master] = self._connection.execute('''
             SELECT *
             FROM "MASTERS" MASTER
-            WHERE MASTER.NAME = :login AND MASTER.ID = :password
+            WHERE MASTER.NAME = :login AND MASTER.NAME = :password
             ''', vars=None, model=Master, login=login, password=password).fetch_all()
             master = masters[0] if masters else None
             return User(master.NAME, User.Role.MASTER, master.ID) if master is not None else None
+
+    def _create_master_role_widget(self, user):
+        connection = self._connection
+        show_abstract_edit = self._show_abstract_edit
+        user_id = user.id
+
+        class CarsListMediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT CAR.*
+                FROM "CARS" CAR
+                ORDER BY CAR.ID DESC
+                ''', model=Car).fetch_all()
+
+            def edit_available(self):
+                return False
+
+            def edit(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+            def delete_available(self):
+                return False
+
+            def delete(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+            def create_available(self):
+                return False
+
+            def create(self):
+                assert False, "You're not supposed to be able to do this"
+
+        class ServicesListMediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT SVC.*
+                FROM "SERVICES" SVC
+                ORDER BY SVC.ID DESC
+                ''', model=Service).fetch_all()
+
+            def edit_available(self):
+                return False
+
+            def edit(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+            def delete_available(self):
+                return False
+
+            def delete(self, item: Model):
+                assert False, "You're not supposed to be able to do this"
+
+            def create_available(self):
+                return False
+
+            def create(self):
+                assert False, "You're not supposed to be able to do this"
+
+        class RecentWorksListMediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT WORK.*
+                FROM "WORKS" WORK
+                WHERE WORK.MASTER_ID = :master_id AND WORK.DATE_WORK > ADD_MONTHS(CURRENT_DATE, -1)
+                ORDER BY WORK.DATE_WORK DESC
+                ''', model=Work, master_id=user_id).fetch_all()
+
+            def edit(self, item: Work):
+                assert isinstance(item, Work)
+                show_abstract_edit(item.ID, Work, "WORKS")
+
+            def delete(self, item: Work):
+                assert isinstance(item, Work)
+                connection.execute('''
+                DELETE FROM "WORKS"
+                WHERE ID = :work_id
+                ''', work_id=item.ID)
+
+            def create(self):
+                show_abstract_edit(None, Work, "WORKS")
+
+        class Mediator(MasterRoleWidget.Mediator):
+            pass
+
+        cars_widget = ListWidget(CarsListMediator(), "Available cars")
+        services_widget = ListWidget(ServicesListMediator(), "Available services")
+        works_widget = ListWidget(RecentWorksListMediator(), "Your recent works")
+        return MasterRoleWidget(Mediator(), cars_widget, services_widget, works_widget)
+
+    def _create_supervisor_role_widget(self):
+        connection = self._connection
+        show_abstract_edit = self._show_abstract_edit
+
+        class CarsListMediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT CAR.*
+                FROM "CARS" CAR
+                ORDER BY CAR.ID DESC
+                ''', model=Car).fetch_all()
+
+            def edit(self, item: Car):
+                assert isinstance(item, Car)
+                show_abstract_edit(item.ID, Car, "CARS")
+
+            def delete(self, item: Car):
+                assert isinstance(item, Car)
+                connection.execute('''
+                DELETE FROM "CARS"
+                WHERE ID = :id_
+                ''', id_=item.ID)
+
+            def create(self):
+                show_abstract_edit(None, Car, "CARS")
+
+        class ServicesListMediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT SVC.*
+                FROM "SERVICES" SVC
+                ORDER BY SVC.ID DESC
+                ''', model=Service).fetch_all()
+
+            def edit(self, item: Service):
+                assert isinstance(item, Service)
+                show_abstract_edit(item.ID, Service, "SERVICES")
+
+            def delete(self, item: Service):
+                assert isinstance(item, Service)
+                connection.execute('''
+                DELETE FROM SERVICES
+                WHERE ID = :id_
+                ''', id_=item.ID)
+
+            def create(self):
+                show_abstract_edit(None, Service, "SERVICES")
+
+        class WorksListMediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                return connection.execute('''
+                SELECT WORK.*
+                FROM "WORKS" WORK
+                ORDER BY WORK.DATE_WORK DESC
+                ''', model=Work).fetch_all()
+
+            def edit(self, item: Work):
+                assert isinstance(item, Work)
+                show_abstract_edit(item.ID, Work, "WORKS")
+
+            def delete(self, item: Work):
+                assert isinstance(item, Work)
+                connection.execute('''
+                DELETE FROM "WORKS"
+                WHERE ID = :id_
+                ''', id_=item.ID)
+
+            def create(self):
+                show_abstract_edit(None, Work, "WORKS")
+
+        class MastersListMediator(ListWidget.Mediator):
+            def load(self) -> List[Model]:
+                items = connection.execute('''
+                SELECT MASTER.*
+                FROM MASTERS MASTER
+                ''', model=Master).fetch_all()
+                return items
+
+            def edit(self, item: Master):
+                assert isinstance(item, Master)
+                show_abstract_edit(item.ID, Master, "MASTERS")
+
+            def delete(self, item: Master):
+                assert isinstance(item, Master)
+                connection.execute('''
+                DELETE FROM "MASTERS"
+                WHERE ID = :id_
+                ''', id_=item.ID)
+
+            def create(self):
+                show_abstract_edit(None, Master, "MASTERS")
+
+        class Mediator(SupervisorRoleWidget.Mediator):
+            def l1(self):
+                return {record.IS_FOREIGN: record.COST for record in connection.execute('''
+                SELECT CAR.IS_FOREIGN AS IS_FOREIGN, SUM(CASE WHEN CAR.IS_FOREIGN = 1 THEN SERVICE.COST_FOREIGN ELSE SERVICE.COST_OUR END) AS COST
+                FROM "CARS" CAR
+                INNER JOIN "WORKS" JOB ON JOB.CAR_ID = CAR.ID
+                INNER JOIN "SERVICES" SERVICE ON JOB.SERVICE_ID = SERVICE.ID
+                GROUP BY CAR.IS_FOREIGN
+                ''').fetch_all()}
+
+            def l2(self):
+                return connection.execute('''
+                SELECT MASTER.*, SUM(1) AS JOBSCOUNT
+                FROM "MASTERS" MASTER
+                INNER JOIN "WORKS" JOB ON JOB.MASTER_ID = MASTER.ID
+                GROUP BY MASTER.ID, MASTER.NAME
+                ORDER BY JOBSCOUNT DESC
+                ''').fetch_all()
+
+        masters_widget = ListWidget(MastersListMediator(), "Masters")
+        services_widget = ListWidget(ServicesListMediator(), "Services")
+        cars_widget = ListWidget(CarsListMediator(), "Cars")
+        works_widget = ListWidget(WorksListMediator(), "Works")
+        return SupervisorRoleWidget(Mediator(), (masters_widget, services_widget, cars_widget, works_widget))
+

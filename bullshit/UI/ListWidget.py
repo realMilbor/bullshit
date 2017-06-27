@@ -21,6 +21,12 @@ class ListWidget(QtWidgets.QWidget):
         def delete(self, item: Model):
             return
 
+        def create_available(self) -> bool:
+            return True
+
+        def create(self):
+            return
+
     class AccessoryWidget(QtWidgets.QWidget):
         def __init__(self, edit_callback: Callable, delete_callback: Callable, parent=None):
             super().__init__(parent)
@@ -56,10 +62,17 @@ class ListWidget(QtWidgets.QWidget):
 
         self._mediator = mediator
         self.groupBox.setTitle(title)
-        self.refreshButton.clicked.connect(self._slot_refresh)
+        self.refreshButton.clicked.connect(self._slot_clicked_refresh)
+        self.addItemButton.clicked.connect(self._slot_clicked_create)
         self._populate()
 
     def _populate(self):
+        edit_available = self._mediator.edit_available()
+        delete_available = self._mediator.delete_available()
+        create_available = self._mediator.create_available()
+
+        self.addItemButton.setHidden(not create_available)
+
         table = self.tableWidget
         self.refreshLabel.setText('Last update time: ' + str(datetime.now()))
 
@@ -71,18 +84,23 @@ class ListWidget(QtWidgets.QWidget):
         schema = items[0].schema
         table: QtWidgets.QTableWidget = self.tableWidget
         table.setColumnCount(schema.properties_count + 1)
+        for i in range(table.columnCount()):
+            table.horizontalHeader().setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeToContents)
         table.setHorizontalHeaderLabels(['⚒'] + list(map(lambda x: x.name, schema)))
 
         for i, row in enumerate(items):
-            table.horizontalHeader().setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeToContents)
             table.setRowCount(i + 1)
-            edit_callback = (lambda: self._mediator.edit(row)) if self._mediator.edit_available() else None
-            delete_callback = (lambda: self._mediator.delete(row)) if self._mediator.delete_available() else None
+            edit_callback = (lambda: self._mediator.edit(row)) if edit_available else None
+            delete_callback = (lambda: self._mediator.delete(row)) if delete_available else None
             widget = __class__.AccessoryWidget(edit_callback=edit_callback, delete_callback=delete_callback)
             table.setCellWidget(i, 0, widget)
 
-            for j, element in enumerate(row.serialize().values()):
+            object = row.serialize()
+            for j, element in enumerate(object.values()):
                 table.setItem(i, j + 1, QtWidgets.QTableWidgetItem(str(element)))
 
-    def _slot_refresh(self):
+    def _slot_clicked_refresh(self):
         self._populate()
+
+    def _slot_clicked_create(self):
+        self._mediator.create()

@@ -22,15 +22,7 @@
     </layout>
    </item>
    <item row="0" column="1">
-    <layout class="QVBoxLayout" name="worksLayout">
-     <item>
-      <widget class="QPushButton" name="createWorkButton">
-       <property name="text">
-        <string>➕</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
+    <layout class="QVBoxLayout" name="worksLayout"/>
    </item>
   </layout>
  </widget>

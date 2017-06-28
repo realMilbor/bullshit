@@ -4,6 +4,7 @@ from Model import *
 from Schema import Schema
 from datetime import datetime
 from numbers import Number
+import cx_Oracle
 
 
 class EditDialog(QtWidgets.QDialog):
@@ -83,8 +84,12 @@ class EditDialog(QtWidgets.QDialog):
         self.load()
 
     def accept(self):
-        self.save()
-        super().accept()
+        try:
+            self.save()
+        except cx_Oracle.DatabaseError as error:
+            self._show_error_dialog(error)
+        else:
+            super().accept()
 
     def save(self):
         model_class = self._current_model_class
@@ -100,6 +105,7 @@ class EditDialog(QtWidgets.QDialog):
 
         self._mediator.write(model_class(**params))
 
+
     def load(self):
         self._clear_form()
         model = self._mediator.read()
@@ -113,8 +119,12 @@ class EditDialog(QtWidgets.QDialog):
         if standard_button == QtWidgets.QDialogButtonBox.Reset:
             self.load()
         elif standard_button == QtWidgets.QDialogButtonBox.Apply:
-            self.save()
-            self.load()
+            try:
+                self.save()
+            except cx_Oracle.DatabaseError as error:
+                self._show_error_dialog(error)
+            else:
+                self.load()
 
     def _create_form(self, schema: Schema):
         def field_class_for_type(self, type: type) -> type:
@@ -148,3 +158,15 @@ class EditDialog(QtWidgets.QDialog):
             if widget is not None:
                 widget.setParent(None)
                 widget.deleteLater()
+
+    def _show_error_dialog(self, err: cx_Oracle.DatabaseError):
+        (error,) = err.args
+        msg = QtWidgets.QMessageBox(self)
+        msg.setIcon(QtWidgets.QMessageBox.Critical if error.isrecoverable else QtWidgets.QMessageBox.Warning)
+        msg.setText(str(error.code))
+        msg.setInformativeText(str(error.message))
+        msg.setWindowTitle("Error")
+        msg.setDetailedText(str(error.context))
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg.setModal(True)
+        msg.show()

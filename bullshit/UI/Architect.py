@@ -325,22 +325,10 @@ class Architect(QtCore.QObject):
 
         class Mediator(SupervisorRoleWidget.Mediator):
             def l1(self):
-                return {record.IS_FOREIGN: record.COST for record in connection.execute('''
-                SELECT CAR.IS_FOREIGN AS IS_FOREIGN, SUM(CASE WHEN CAR.IS_FOREIGN = 1 THEN SERVICE.COST_FOREIGN ELSE SERVICE.COST_OUR END) AS COST
-                FROM "CARS" CAR
-                INNER JOIN "WORKS" JOB ON JOB.CAR_ID = CAR.ID
-                INNER JOIN "SERVICES" SERVICE ON JOB.SERVICE_ID = SERVICE.ID
-                GROUP BY CAR.IS_FOREIGN
-                ''').fetch_all()}
+                return {i: connection.callProcedure("SUPERVISOR_TOTAL_REVENUE", [i, 0.0])[1] for i in (0, 1)}
 
             def l2(self):
-                return connection.execute('''
-                SELECT MASTER.*, SUM(1) AS JOBSCOUNT
-                FROM "MASTERS" MASTER
-                INNER JOIN "WORKS" JOB ON JOB.MASTER_ID = MASTER.ID
-                GROUP BY MASTER.ID, MASTER.NAME
-                ORDER BY JOBSCOUNT DESC
-                ''').fetch_all()
+                return connection.callFunction("SUPERVISOR_TOP_MASTERS", cx_Oracle.CURSOR).fetch_all()
 
         masters_widget = ListWidget(MastersListMediator(), "Masters")
         services_widget = ListWidget(ServicesListMediator(), "Services")

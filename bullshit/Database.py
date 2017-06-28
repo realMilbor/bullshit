@@ -2,7 +2,7 @@ import sys
 import cx_Oracle
 from datetime import datetime
 from numbers import Number
-from typing import *
+from typing import List, Dict, Callable
 from Schema import Schema
 from Model import MetaModel
 
@@ -67,7 +67,7 @@ class Database:
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
-        def open(self):
+        def open(self) -> bool:
             if self._connection is None:
                 try:
                     self._connection = cx_Oracle.connect(self._connection_string)
@@ -108,7 +108,17 @@ class Database:
                 self.commit_transaction()
                 return True
 
-        def execute(self, string, vars=None, model=None, *args, **kwargs):
+        def callProcedure(self, name: str, params: List = None, kwparams: Dict = None) -> List:
+            cursor: cx_Oracle.Cursor = self._connection.cursor()
+            result = cursor.callproc(name, params or [], kwparams or {})
+            return result if not isinstance(result, cx_Oracle.Cursor) else self._wrap_cusor(result)
+
+        def callFunction(self, name: str, type: any, params: List = None, kwparams: Dict = None):
+            cursor: cx_Oracle.Cursor = self._connection.cursor()
+            result = cursor.callfunc(name, type, params or [], kwparams or {})
+            return result if not isinstance(result, cx_Oracle.Cursor) else self._wrap_cusor(result)
+
+        def execute(self, string, vars=None, model=None, *args, **kwargs) -> Cursor:
             cursor: cx_Oracle.Cursor = self._connection.cursor()
 
             variables = {name: cursor.var(type) for name, type in (vars or {}).items()}
@@ -116,6 +126,9 @@ class Database:
             cursor.prepare(string)
             cursor.execute(None, *args, {**kwargs, **variables})
 
+            return self._wrap_cusor(cursor, model, variables)
+
+        def _wrap_cusor(self, cursor: cx_Oracle.Cursor, model: MetaModel = None, variables: Dict = None) -> Cursor:
             schema = model.schema if model is not None else None
             schema = schema or Schema(cursor.description) if cursor.description is not None else None
             if schema is not None:
